@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mazegen"
+version = "1.0.0"
+description = "Reusable perfect / playable (Pac-Man-style) maze generator built for the 42 'A-Maze-ing' project"
+readme = "README_mazegen.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE.md" }
+authors = [{ name = "Sekikawa Sakura" }]
+keywords = ["maze", "procedural-generation", "42"]
+
+[tool.setuptools.packages.find]
+include = ["mazegen*"]

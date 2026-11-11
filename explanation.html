@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A-Maze-ing — 実装解説</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"
+  integrity="sha384-WmdflGW9aGfoBdHc4rRyWzYuAjEmDwMdGdiPNacbwfGKxBW/SO6guzuQ76qjnSlr"
+  crossorigin="anonymous"></script>
+<style>
+:root{
+  --bg:#0f1115; --panel:#171a21; --panel2:#1d212a; --border:#2a2f3a;
+  --text:#e7e9ee; --muted:#9aa3b2; --accent:#7dd3fc; --accent2:#f0abfc;
+  --ok:#4ade80; --warn:#fbbf24; --code-bg:#11141b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:16px/1.65 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;}
+.topnav{position:sticky;top:0;background:#0c0e12ee;border-bottom:1px solid var(--border);
+  backdrop-filter:blur(6px);z-index:10;}
+.topnav .inner{max-width:1200px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:12px}
+.brand{color:var(--text);text-decoration:none;font-weight:700;letter-spacing:.02em}
+.brand span{color:var(--accent)}
+.layout{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:220px 1fr;gap:32px;padding:28px 24px 80px}
+.toc{position:sticky;top:64px;align-self:start;font-size:14px}
+.toc h4{color:var(--muted);text-transform:uppercase;font-size:12px;letter-spacing:.08em;margin:0 0 10px}
+.toc a{display:block;color:var(--muted);text-decoration:none;padding:5px 0;border-left:2px solid transparent}
+.toc a:hover{color:var(--accent)}
+.main{min-width:0}
+.eyebrow{color:var(--accent2);text-transform:uppercase;letter-spacing:.1em;font-size:12px;font-weight:700;margin:0}
+h1{font-size:2rem;line-height:1.3;margin:.3em 0 .2em}
+h2{margin-top:3em;border-bottom:1px solid var(--border);padding-bottom:.4em}
+h3{color:var(--accent)}
+.sub{color:var(--muted);font-size:1.05em}
+code{background:var(--code-bg);padding:.12em .4em;border-radius:4px;font-size:.92em;color:#fbcfe8}
+pre{background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:16px 18px;
+  overflow:auto;font-size:.88em;line-height:1.55}
+pre code{background:none;padding:0;color:inherit}
+.k{color:#c792ea}.f{color:#82aaff}.s{color:#c3e88d}.c{color:#676e95}.n{color:#f78c6c}
+.table-wrap{overflow:auto;border:1px solid var(--border);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:.92em}
+th,td{padding:9px 12px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+th{background:var(--panel2);color:var(--accent)}
+tr:last-child td{border-bottom:none}
+ul.req{padding-left:1.3em}
+ul.req li{margin:.4em 0}
+.note{border-left:4px solid var(--accent);background:var(--panel);padding:12px 16px;border-radius:0 8px 8px 0;margin:1.2em 0}
+.note.ok{border-color:var(--ok)}
+.note.warn{border-color:var(--warn)}
+.mermaid{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;margin:1.2em 0}
+.badge{display:inline-block;background:#14301f;color:var(--ok);border:1px solid #1f5c38;
+  border-radius:999px;padding:2px 10px;font-size:.8em;font-weight:600}
+video,img.shot{width:100%;border-radius:10px;border:1px solid var(--border);display:block;margin:.6em 0}
+.shots{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+[data-tabs]{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:1.2em 0}
+[data-tabs] .tabs{display:flex;background:var(--panel2);border-bottom:1px solid var(--border)}
+[data-tabs] .tabs button{background:none;border:none;color:var(--muted);padding:9px 16px;
+  font:inherit;cursor:pointer;border-bottom:2px solid transparent}
+[data-tabs] .tabs button.active{color:var(--accent);border-bottom-color:var(--accent)}
+[data-tabs] .tabpanel{display:none;padding:14px 18px}
+[data-tabs] .tabpanel.active{display:block}
+[data-tabs] .tabpanel pre{border:none;border-radius:0;margin:0}
+.pager{display:flex;justify-content:space-between;margin-top:3em;padding-top:1.4em;border-top:1px solid var(--border)}
+.pager a{color:var(--accent);text-decoration:none}
+.foot{color:var(--muted);font-size:.85em;margin-top:2em}
+/* _carve_spanning_tree のステップ再生 */
+.carve{border:1px solid var(--border);border-radius:10px;background:var(--panel);padding:16px;margin:1.2em 0}
+.carve-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px}
+.carve svg{width:100%;height:auto;display:block}
+.carve-ctrl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}
+.carve-ctrl button{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:8px;
+  padding:6px 12px;font:inherit;font-size:.9em;cursor:pointer}
+.carve-ctrl button:hover{border-color:var(--accent)}
+.carve-ctrl input[type=range]{flex:1;min-width:120px;accent-color:var(--accent)}
+.carve-ctrl .count{color:var(--muted);font-size:.85em;font-variant-numeric:tabular-nums;min-width:6.5em;text-align:right}
+.carve-msg{background:var(--panel2);border-radius:8px;padding:10px 12px;margin:0 0 10px;min-height:4.6em}
+.carve-msg b{color:var(--accent)}
+.carve-try{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 0}
+.carve-try span{border:1px solid var(--border);border-radius:6px;padding:1px 8px;font-size:.85em}
+.carve-try .ok{border-color:var(--ok);color:var(--ok)}
+.carve-try .ng{color:var(--muted);text-decoration:line-through}
+.carve-try .skip{color:var(--muted);opacity:.5}
+.carve-stack{font-size:.85em;color:var(--muted);margin:0 0 10px;word-break:break-all}
+.carve-stack code{color:var(--accent)}
+.carve-code{margin:0;font-size:.8em;padding:10px 0}
+.carve-code span.ln{display:block;padding:0 14px;border-left:3px solid transparent}
+.carve-code span.ln.hl{background:#7dd3fc1f;border-left-color:var(--accent)}
+.carve-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:.8em;color:var(--muted);margin-top:8px}
+.carve-legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+@media (max-width:860px){.carve-grid{grid-template-columns:1fr}}
+@media (max-width:860px){.layout{grid-template-columns:1fr}.toc{position:static}.shots{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<nav class="topnav"><div class="inner"><span class="brand">42 Tokyo <span>A-Maze-ing</span></span></div></nav>
+
+<div class="layout">
+<aside class="toc">
+  <h4>目次</h4>
+  <a href="#overview">課題の概要</a>
+  <a href="#requirements">必須要件</a>
+  <a href="#model">データモデル</a>
+  <a href="#algo">生成アルゴリズム</a>
+  <a href="#carve" style="padding-left:12px">└ 全域木を掘る手順</a>
+  <a href="#loops" style="padding-left:12px">└ ループを足す手順</a>
+  <a href="#output">出力フォーマット</a>
+  <a href="#demo">デモ動画</a>
+  <a href="#verify">検証結果</a>
+  <a href="#reuse">再利用パッケージ</a>
+  <a href="#ai">AIの使い方</a>
+</aside>
+
+<main class="main">
+<p class="eyebrow">A-Maze-ing — 42 Tokyo cursus</p>
+<h1>config.txt から「唯一経路の迷路」も<br>「Pac-Man 盤面」も生成する</h1>
+<p class="sub">
+再帰バックトラッカー法で全域木を掘り、<code>PERFECT=True</code> ならそのまま唯一経路の迷路に、
+<code>PERFECT=False</code>（既定）ならループ追加とブレイディングで行き止まりゼロの
+Pac-Man 盤面に変える。中央には完全に孤立した &quot;42&quot; 模様を描く。
+<span class="badge">flake8 0 / mypy --strict 0</span>
+<span class="badge">42提供 maze_analyzer.py 全合格</span>
+</p>
+
+<h2 id="overview">1. 課題の概要</h2>
+<p>
+<code>en.subject.pdf</code>（A-Maze-ing, version 2.3）で定義された、Python 3.10+ の迷路生成課題。
+<code>python3 a_maze_ing.py config.txt</code> で起動し、設定ファイルから迷路を生成してファイルに書き出し、
+ターミナルに表示する。生成ロジックは <code>mazegen</code> という独立パッケージに切り出し、
+後続プロジェクトから <code>pip install</code> して再利用できるようにする（Chapter VI）。
+</p>
+<div class="note">
+実装一式は <code>repo/</code> にある。このファイル自体と <code>REQUIREMENTS.md</code> /
+<code>REPORT.md</code> / <code>demo.mp4</code> は提出物ではなく、作業の可視化・検証記録用。
+</div>
+
+<h2 id="requirements">2. 必須要件と対応状況</h2>
+<div class="table-wrap"><table>
+<tr><th>章</th><th>要件</th><th>対応</th></tr>
+<tr><td>III</td><td>Python 3.10+ / flake8 / 例外処理 / 型ヒント+mypy / docstring / Makefile</td>
+  <td>全ファイルで適用。<code>make lint-strict</code> で flake8+mypy --strict が0エラー</td></tr>
+<tr><td>IV.2-3</td><td><code>python3 a_maze_ing.py config.txt</code>、KEY=VALUE形式、エラーを握りつぶさない</td>
+  <td>書式は <code>a_maze_ing.py</code>、範囲は <code>MazeGenerator</code> が確認し、<code>main</code> が全エラーを捕捉</td></tr>
+<tr><td>IV.4</td><td>seedで再現、北東南西の壁、連結、境界壁、整合する符号化、3x3以上の空間禁止、
+  &quot;42&quot;模様、PERFECT True/False</td>
+  <td><code>mazegen/generator.py</code>（詳細は<a href="#algo">§4</a>）</td></tr>
+<tr><td>IV.5</td><td>16進数グリッド、空行、entry/exit座標、最短経路(N/E/S/W)、全行 <code>\n</code></td>
+  <td><code>a_maze_ing.write_maze_file()</code>（<a href="#output">§5</a>）</td></tr>
+<tr><td>V</td><td>ターミナルASCII表示、再生成／経路表示切替／壁色変更の対話操作</td>
+  <td><code>display.py</code>、<a href="#demo">デモ動画</a>で実演</td></tr>
+<tr><td>VI</td><td>再利用可能クラス、単一ファイルでpipインストール可能、LICENSE.md</td>
+  <td><code>mazegen</code> パッケージ、<a href="#reuse">§7</a></td></tr>
+<tr><td>VII</td><td>README.md の必須記載事項一式</td><td><code>repo/README.md</code></td></tr>
+<tr><td>VIII</td><td>（ボーナス）行き止まりゼロの盤面</td>
+  <td>デフォルトで行き止まりゼロを達成（<a href="#verify">§6</a>で確認）</td></tr>
+</table></div>
+
+<h2 id="model">3. データモデル</h2>
+<div class="mermaid">
+classDiagram
+    class Direction {
+        &lt;&lt;IntFlag&gt;&gt;
+        NORTH = 1
+        EAST = 2
+        SOUTH = 4
+        WEST = 8
+        +opposite Direction
+        +step tuple
+        +letter str
+    }
+    class Maze {
+        +width int
+        +height int
+        +walls List~List~Direction~~
+        +entry Cell
+        +exit Cell
+        +perfect bool
+        +pattern_cells FrozenSet~Cell~
+        +seed int
+        +warnings List~str~
+        +to_hex_rows() List~str~
+        +shortest_path() List~Direction~
+    }
+    class MazeGenerator {
+        +width int
+        +height int
+        +seed int
+        +generate(entry, exit, perfect) Maze
+    }
+    MazeGenerator --&gt; Maze : generate()
+    Maze --&gt; Direction
+</div>
+<p>
+ビット値は課題PDFの表と完全一致: <code>North=1, East=2, South=4, West=8</code>、ビットが立っていれば
+その方向の壁は<b>閉じている</b>。座標は内部的に <code>(row, col)</code>、config.txt / 出力ファイルは
+<code>x,y</code> なので <code>a_maze_ing.py</code> で変換する。
+</p>
+
+<h2 id="algo">4. 迷路生成アルゴリズム</h2>
+<div class="mermaid">
+flowchart TD
+    S[開始] --&gt; P["locate_42_cells(width,height)\n→ '42'模様セル集合 or 警告"]
+    P --&gt; O{"entry/exitが\n模様と重なる?"}
+    O --&gt;|Yes| P2[模様を諦める]
+    O --&gt;|No| T
+    P2 --&gt; T
+    T["全セルをALL_WALLSで初期化"] --&gt; C
+    C["carve_spanning_tree\n(反復DFS, '42'セルは対象外)"] --&gt; Perf{PERFECT?}
+    Perf --&gt;|True| Done1[完成：唯一経路の迷路]
+    Perf --&gt;|False| L["add_loops\n(3x3チェックしつつ壁を数本開放)"]
+    L --&gt; B["braid_dead_ends\n(行き止まりを可能な限り解消)"]
+    B --&gt; Done2[完成：Pac-Man盤面]
+</div>
+
+<h3 id="carve">_carve_spanning_tree を1手ずつ見る</h3>
+<p>
+全セルの壁が閉じた状態から始めて、<b>「まだ行っていない隣へ壁を壊して進む」</b>、
+<b>「進める隣が無ければ1つ戻る」</b>を、スタックが空になるまで繰り返す（再帰バックトラッカー法を
+スタックで書いたもの）。下の 6x5 の盤面で、グレーの2マスは "42" 模様のセル（掘る対象外）、入口は左上。
+「次へ」を押すと、右のコードの今動いている行が光る。
+</p>
+<div class="carve" id="carve-demo">
+  <div class="carve-ctrl">
+    <button type="button" data-act="reset">⏮ 最初</button>
+    <button type="button" data-act="prev">◀ 前へ</button>
+    <button type="button" data-act="next">次へ ▶</button>
+    <button type="button" data-act="play">▶ 自動再生</button>
+    <button type="button" data-act="reseed">🎲 別のseed</button>
+    <input type="range" min="0" value="0" aria-label="ステップ">
+    <span class="count"></span>
+  </div>
+  <div class="carve-grid">
+    <div>
+      <svg viewBox="0 0 340 290" role="img" aria-label="迷路を掘る様子"></svg>
+      <div class="carve-legend">
+        <span><i style="background:#f0abfc"></i>current（スタックの一番上）</span>
+        <span><i style="background:#1e4a5f"></i>スタックに積まれている</span>
+        <span><i style="background:#232834"></i>掘り終わり（戻った後）</span>
+        <span><i style="background:#0b0d11;border:1px solid #2a2f3a"></i>未訪問</span>
+        <span><i style="background:#6b7280"></i>"42"（対象外）</span>
+      </div>
+    </div>
+    <div>
+      <div class="carve-msg"></div>
+      <div class="carve-stack"></div>
+      <pre class="carve-code"><code><span class="ln" data-g="init">carvable_set = set(carvable)</span><span class="ln" data-g="init">visited = {entry}</span><span class="ln" data-g="init">stack = [entry]</span><span class="ln" data-g="loop done">while stack:</span><span class="ln" data-g="loop">    current = stack[-1]</span><span class="ln" data-g="loop">    directions = list(Direction)</span><span class="ln" data-g="loop">    rng.shuffle(directions)</span><span class="ln" data-g="loop">    advanced = False</span><span class="ln" data-g="loop">    for direction in directions:</span><span class="ln" data-g="loop">        nxt = self._neighbour(current, direction)</span><span class="ln" data-g="loop">        if nxt in carvable_set and nxt not in visited:</span><span class="ln" data-g="carve">            walls[current] &amp;= ~direction</span><span class="ln" data-g="carve">            walls[nxt] &amp;= ~direction.opposite</span><span class="ln" data-g="carve">            visited.add(nxt)</span><span class="ln" data-g="carve">            stack.append(nxt)</span><span class="ln" data-g="carve">            advanced = True</span><span class="ln" data-g="carve">            break</span><span class="ln" data-g="pop">    if not advanced:</span><span class="ln" data-g="pop">        stack.pop()</span></code></pre>
+    </div>
+  </div>
+</div>
+<div class="note">
+この図はブラウザ上で同じ手順を再現したもの（乱数はJSで作るので、Python の実際の出力とは迷路の形が違う）。
+ポイントは2つ。<b>① 掘るたびに visited が1つ増え、戻るときは何も増えない</b>ので、
+全セルを1回ずつ訪れたら必ず止まる。<b>② 壁は「未訪問のセルへ進むとき」しか壊さない</b>ので、
+ループは絶対にできず、全セルが1本の木でつながる（＝ <code>PERFECT=True</code> の唯一経路の迷路）。
+"42" のセルは <code>carvable_set</code> に入っていないので、一度も壁を壊されずに閉じたまま残る。
+</div>
+
+<h3 id="loops">_add_loops を1手ずつ見る（全域木の続き）</h3>
+<p>
+全域木（上の図の最終形）はループが無く、経路は常に1本しか無い。<code>PERFECT=False</code>
+ではここから、<b>まだ閉じている壁をいくつか選んで追加で開け</b>、別経路（ループ）を作る。
+開ける本数は <code>max(2, セル数 // 25)</code> で決め、この6x5盤面（28セル）では2本。
+壁を開ける前に必ず「3x3の開けた部屋になってしまわないか」をチェックし、なるなら諦める（却下）。
+</p>
+<div class="carve" id="loops-demo">
+  <div class="carve-ctrl">
+    <button type="button" data-act="reset">⏮ 最初</button>
+    <button type="button" data-act="prev">◀ 前へ</button>
+    <button type="button" data-act="next">次へ ▶</button>
+    <button type="button" data-act="play">▶ 自動再生</button>
+    <button type="button" data-act="reseed">🎲 別のseed</button>
+    <input type="range" min="0" value="0" aria-label="ステップ">
+    <span class="count"></span>
+  </div>
+  <div class="carve-grid">
+    <div>
+      <svg viewBox="0 0 340 290" role="img" aria-label="ループを追加する様子"></svg>
+      <div class="carve-legend">
+        <span><i style="background:#e7e9ee"></i>壁（閉じている辺）</span>
+        <span><i style="background:#4ade80"></i>新しく開けたループ</span>
+        <span><i style="background:#f0abfc"></i>今試している2マス</span>
+        <span><i style="background:#6b7280"></i>"42"（対象外）</span>
+      </div>
+    </div>
+    <div>
+      <div class="carve-msg"></div>
+      <div class="carve-stack"></div>
+      <pre class="carve-code"><code><span class="ln" data-g="init">carvable_set = set(carvable)</span><span class="ln" data-g="init">target_extra = max(2, len(carvable) // 25)</span><span class="ln" data-g="init">candidates = self._closed_edges(walls, carvable_set)</span><span class="ln" data-g="init">rng.shuffle(candidates)</span><span class="ln" data-g="init">opened = 0</span><span class="ln" data-g="init accept reject break">for cell, direction, other in candidates:</span><span class="ln" data-g="break">    if opened &gt;= target_extra:</span><span class="ln" data-g="break">        break</span><span class="ln" data-g="accept reject">    if self._would_make_big_room(walls, cell, other):</span><span class="ln" data-g="reject">        continue</span><span class="ln" data-g="accept">    self._open_wall(walls, cell, direction)</span><span class="ln" data-g="accept">    opened += 1</span></code></pre>
+    </div>
+  </div>
+</div>
+<div class="note">
+<b>却下（3x3チェックに引っかかる）がこの図でほぼ起きないのは手抜きではない。</b>
+全域木はもともと壁だらけ（スカスカ）で、そこにたった2本足すだけなので、
+「3x3の窓12本の壁が偶然すべて開く」状況はまず起きない。実際に seed を1〜5000まで
+総当たりしてもこの6x5盤面では一度も却下は発生せず、課題と同じ20x15サイズ（想定 target=12本）
+でも300シード試して却下0件だった。チェック自体は候補1つごとに必ず呼ばれている
+（上のコード、<code>_would_make_big_room</code> の中身は後述）ので、却下が起きやすいのは
+むしろ次の <code>_braid_dead_ends</code>（行き止まり解消）のように、既にかなり壁が
+開いた盤面に対してさらに開けようとする場面。
+</div>
+
+<h3>なぜこのアルゴリズムか</h3>
+<div data-tabs>
+  <div class="tabs">
+    <button class="active">コード（3x3チェック）</button>
+    <button>解説</button>
+  </div>
+  <div class="tabpanel active"><pre><code><span class="k">def</span> <span class="f">_would_make_big_room</span>(self, walls, a: Cell, b: Cell) -&gt; bool:
+    <span class="c">"""a-b の壁を開けると3x3以上の開けた部屋ができてしまうかを調べる。</span>
+<span class="c">    両セルを含みうるすべての3x3の窓について、内部の12本の壁が</span>
+<span class="c">    (このa-b間を開けたと仮定して) 全て開いているかを確認する。"""</span>
+    <span class="k">if</span> self.height &lt; <span class="n">3</span> <span class="k">or</span> self.width &lt; <span class="n">3</span>:
+        <span class="k">return</span> <span class="k">False</span>
+    row_hi, col_hi = max(a[<span class="n">0</span>], b[<span class="n">0</span>]), max(a[<span class="n">1</span>], b[<span class="n">1</span>])
+    row_lo, col_lo = min(a[<span class="n">0</span>], b[<span class="n">0</span>]), min(a[<span class="n">1</span>], b[<span class="n">1</span>])
+    top_range = range(max(<span class="n">0</span>, row_hi - <span class="n">2</span>), min(row_lo, self.height - <span class="n">3</span>) + <span class="n">1</span>)
+    left_range = range(max(<span class="n">0</span>, col_hi - <span class="n">2</span>), min(col_lo, self.width - <span class="n">3</span>) + <span class="n">1</span>)
+    <span class="k">for</span> top <span class="k">in</span> top_range:
+        <span class="k">for</span> left <span class="k">in</span> left_range:
+            <span class="k">if</span> self._window_fully_open(walls, top, left, a, b):
+                <span class="k">return</span> <span class="k">True</span>
+    <span class="k">return</span> <span class="k">False</span>
+    <span class="c"># 全文: repo/mazegen/generator.py</span></code></pre></div>
+  <div class="tabpanel">
+    <ul class="req">
+      <li><b>再帰バックトラッカー（反復・スタック版）</b>で "42" パターン以外の全セルの全域木を掘る。
+        これだけで <code>PERFECT=True</code>（唯一経路、ループ無し）が完成する。</li>
+      <li><code>PERFECT=False</code> では、全域木の上に <b>ループ追加</b>（独立経路を複数作る）と
+        <b>ブレイディング</b>（行き止まりを解消）を重ねる。既存の木の上に足すだけなので、
+        接続性・"42"模様の孤立性は最初から保証されたまま変わらない。</li>
+      <li>どちらの追加操作も、壁を開ける前に <b>3x3の窓を総当たりでチェック</b>し、
+        「開けた空間が3x3以上になる壁開放」を拒否する（左のコード）。
+        a-bを含みうる3x3窓を総当たりし、各窓の内部12本の壁が
+        （a-b間を仮に開けた状態で）すべて開いていたら拒否する。</li>
+    </ul>
+  </div>
+</div>
+
+<h2 id="output">5. 出力ファイルフォーマット</h2>
+<pre><code>91539551539151515553
+ac54693c3c68383a9516
+...（1セル1桁の16進数、行ごとに1行）
+
+0,0
+19,14
+EEESENEEESESSESSSSENEEENEEEESEESSSSSSSS</code></pre>
+<p>1セル1桁の16進数（壁ビットが立っていれば閉じている）、空行、entry座標、exit座標、
+entryからexitまでの最短経路(N/E/S/W)の順。全行末尾に <code>\n</code>。</p>
+
+<h2 id="demo">6. デモ動画</h2>
+<div class="note">
+<b>補足：</b> <code>/ego-e2e-kit:e2e-shot</code> はターミナルCLIにはそのまま適用できない
+（ego-browser＝ブラウザ経由のWebアプリE2E専用、URL/ポート前提）ため、同スキルが本来対象とする
+要件4のHTMLページ自体をテスト対象に据え、依存確認→10件のテストケース宣言→実操作・
+スクリーンショット撮影→報告、という<code>e2e-shot</code>の手順をそのまま最後まで実行した
+（詳細は <a href="../REPORT.md">REPORT.md §4.1</a>）。下の動画は、その<code>e2e-shot</code>が
+実際に撮影した9枚のスクリーンショットをそのまま時系列でつないだTEST動画。
+さらに、同じ<code>ego-e2e-kit</code>プラグインの動画生成専用スキル
+<code>ego-e2e-kit:test-mov</code>（ナレーション・字幕・赤枠つき）でも別途8ステップの
+検証動画を作成した（2本目）。CLI本体の実演は3本目の自前録画で担保する。
+</div>
+<h3>① ego-e2e-kit:e2e-shot のスクリーンショットから作成したTEST動画</h3>
+<video controls src="e2e_shot_video.mp4"></video>
+<p class="sub">e2e-shotが実際に撮影した9枚（起動直後／アルゴリズム図／デモ動画セクション／
+コード・解説タブの切替／TOC遷移後／モバイル幅トップ／モバイル幅の検証結果表）を結合。
+全て合格（コンソールエラー0件、画像・動画・Mermaid全て読み込み成功）。</p>
+
+<h3>② ego-e2e-kit:test-mov によるナレーション付きTEST動画（赤枠・字幕・VOICEVOX音声）</h3>
+<video controls src="e2e_test.mp4"></video>
+<p class="sub">8ステップ・48秒。要件対応表・データモデル・アルゴリズム・コード/解説タブ・
+デモ動画・検証結果・再利用パッケージの各セクションを、赤枠とナレーションで1つずつ確認し、
+最後に合格（pass）判定のナレーションで締める。</p>
+
+<h3>③ CLI本体の実演（pexpect/pyte/ffmpeg による対話セッション録画）</h3>
+<video controls src="demo.mp4"></video>
+<p class="sub">実際に <code>python3 a_maze_ing.py config.txt</code> を実行し、
+「1: 再生成」→「2: 経路表示」→「3: 色変更」×2→「2: 経路を隠す」→「4: 終了」を自動操作した様子。</p>
+<div class="shots">
+  <div><img class="shot" src="demo_frame_start.png" alt="起動直後"><p class="sub">起動直後。入口(マゼンタ)・出口(赤)・中央のグレーの&quot;42&quot;模様</p></div>
+  <div><img class="shot" src="demo_frame_path.png" alt="経路表示"><p class="sub">「2」で最短経路(シアン)を表示した状態</p></div>
+</div>
+
+<h2 id="verify">7. 検証結果</h2>
+<p>42提供の <code>maze_analyzer.py</code> を、7種類のサイズ × PERFECT True/False × 3種のseed =
+42通り、さらに別途 PERFECT=False を59 seedで流し、全てで期待通りの判定になることを確認した。</p>
+<div class="table-wrap"><table>
+<tr><th>検証項目</th><th>結果</th></tr>
+<tr><td>flake8 .</td><td>0 エラー</td></tr>
+<tr><td>mypy . --strict</td><td>0 エラー</td></tr>
+<tr><td>pytest tests/（開発用、非提出）</td><td>5/5 pass</td></tr>
+<tr><td>PERFECT=True（7サイズ×3seed=21通り）</td><td>全て &quot;PERFECT maze&quot; 判定</td></tr>
+<tr><td>PERFECT=False（7サイズ×3seed=21通り + 59seed）</td><td>全て &quot;Pac-Man-USABLE&quot;、real dead-ends=0（ボーナス条件）</td></tr>
+<tr><td>5x5（小さすぎるサイズ）</td><td>&quot;42&quot;模様を省略し、コンソールに警告を表示（仕様通り）</td></tr>
+<tr><td>設定エラー系（必須キー欠落／entry=exit／範囲外／ファイル無し等）</td><td>全てクラッシュせず、わかりやすいメッセージ＋非ゼロ終了</td></tr>
+<tr><td>mazegenパッケージの単体インストール</td><td>クリーンなvenvに.whlを入れ、<code>from mazegen import MazeGenerator</code> が単体動作</td></tr>
+</table></div>
+<div class="note ok">
+検証中に実際のバグを1件発見・修正した：ASCII描画の壁(<code>#</code>)と&quot;42&quot;模様(当初同じく<code>#</code>)が
+同じキーとして色パレット辞書に登録されており、壁色のローテーション（メニュー「3」）が常に
+模様の色で上書きされ機能していなかった。模様の文字を <code>@</code> に分離して解決（詳細は
+<a href="../REPORT.md">REPORT.md</a>）。
+</div>
+
+<h2 id="reuse">8. 再利用可能パッケージ</h2>
+<p><code>mazegen/</code> は <code>config.txt</code>・出力ファイル形式・ターミナル表示に一切依存しない。
+<code>pyproject.toml</code> から <code>python -m build</code> し、
+<code>repo/mazegen-1.0.0-py3-none-any.whl</code> / <code>.tar.gz</code> を生成した。</p>
+<pre><code><span class="k">from</span> mazegen <span class="k">import</span> MazeGenerator
+
+generator = MazeGenerator(width=<span class="n">20</span>, height=<span class="n">15</span>, seed=<span class="n">42</span>)
+maze = generator.generate(entry=(<span class="n">0</span>, <span class="n">0</span>), exit=(<span class="n">14</span>, <span class="n">19</span>), perfect=<span class="k">False</span>)
+
+maze.to_hex_rows()      <span class="c"># 出力ファイル用の16進数表現</span>
+maze.shortest_path()    <span class="c"># [Direction.EAST, Direction.SOUTH, ...]</span></code></pre>
+<p>ライセンスは MIT（<code>repo/LICENSE.md</code>）。詳細な使い方は
+<code>repo/README_mazegen.md</code>（パッケージに同梱）参照。</p>
+
+<h2 id="ai">9. AIの使い方</h2>
+<ul class="req">
+  <li>課題PDFの読解→<code>REQUIREMENTS.md</code>作成、実装一式、アルゴリズムの反復調整
+    （42提供の <code>maze_analyzer.py</code> に合格するまで）、pytestの作成・デバッグ、
+    パッケージビルド、本ドキュメント作成を Claude（Anthropic）が行った。</li>
+  <li>生成した内容は全て実行・lint・テスト・<code>maze_analyzer.py</code>での照合を経てから採用。
+    発見したバグ・誤りは <a href="../REPORT.md">REPORT.md</a> に記録している。</li>
+</ul>
+
+<div class="pager">
+  <span></span>
+  <a href="../REPORT.md">REPORT.md（要件対応・検証ログの詳細）→</a>
+</div>
+<div class="foot">42 Tokyo A-Maze-ing — 実装解説。コードは <code>repo/</code> のものと同一。</div>
+</main>
+</div>
+
+<script>
+mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+document.querySelectorAll('[data-tabs]').forEach((block) => {
+  const buttons = [...block.querySelectorAll('.tabs button')];
+  const panels = [...block.querySelectorAll('.tabpanel')];
+  buttons.forEach((btn, i) => {
+    btn.addEventListener('click', () => {
+      buttons.forEach((b) => b.classList.remove('active'));
+      panels.forEach((p) => p.classList.remove('active'));
+      btn.classList.add('active');
+      panels[i].classList.add('active');
+    });
+  });
+});
+
+/* _carve_spanning_tree を同じ手順でシミュレートし、1手ごとの状態を記録して再生する */
+(() => {
+  const root = document.getElementById('carve-demo');
+  if (!root) return;
+  const W = 6, H = 5, CELL = 52, PAD = 14;
+  const ENTRY = [0, 0];
+  const BLOCKED = new Set(['2,2', '2,3']);  // "42" 模様のセル（掘る対象外）
+  const DIRS = [
+    { name: '北', bit: 1, dr: -1, dc: 0, opp: 4 },
+    { name: '東', bit: 2, dr: 0, dc: 1, opp: 8 },
+    { name: '南', bit: 4, dr: 1, dc: 0, opp: 1 },
+    { name: '西', bit: 8, dr: 0, dc: -1, opp: 2 },
+  ];
+  const key = (r, c) => r + ',' + c;
+  const label = (r, c) => '(' + r + ',' + c + ')';
+  const inGrid = (r, c) => r >= 0 && r < H && c >= 0 && c < W;
+  const carvable = (r, c) => inGrid(r, c) && !BLOCKED.has(key(r, c));
+
+  function makeRng(seed) {  // mulberry32: seed 固定で毎回同じ乱数列
+    let a = seed >>> 0;
+    return () => {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function simulate(seed) {
+    const rng = makeRng(seed);
+    const walls = Array.from({ length: H }, () => Array(W).fill(15));
+    const visited = new Set([key(...ENTRY)]);
+    const stack = [ENTRY];
+    const steps = [];
+    const snap = (extra) => steps.push({
+      walls: walls.map((row) => row.slice()),
+      visited: new Set(visited),
+      stack: stack.slice(),
+      ...extra,
+    });
+    snap({ g: 'init', msg: '全セルの壁が閉じた状態から開始。入口 <b>' + label(...ENTRY) + '</b> を visited に入れ、stack に積む。' });
+
+    while (stack.length) {
+      const [r, c] = stack[stack.length - 1];
+      const order = DIRS.slice();
+      for (let i = order.length - 1; i > 0; i--) {  // シャッフル
+        const j = Math.floor(rng() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+      const tried = [];
+      let moved = null;
+      for (const d of order) {
+        const nr = r + d.dr, nc = c + d.dc;
+        if (moved) { tried.push({ d, st: 'skip' }); continue; }
+        let why = '';
+        if (!inGrid(nr, nc)) why = '盤面の外';
+        else if (BLOCKED.has(key(nr, nc))) why = '"42"のセル';
+        else if (visited.has(key(nr, nc))) why = '訪問済み';
+        if (why) { tried.push({ d, st: 'ng', why }); continue; }
+        walls[r][c] &= ~d.bit;
+        walls[nr][nc] &= ~d.opp;
+        visited.add(key(nr, nc));
+        stack.push([nr, nc]);
+        moved = { d, from: [r, c], to: [nr, nc] };
+        tried.push({ d, st: 'ok' });
+      }
+      if (moved) {
+        snap({
+          g: 'carve', tried, from: moved.from, to: moved.to,
+          msg: 'current <b>' + label(r, c) + '</b> から方向をシャッフルして順に試す → <b>' + moved.d.name +
+            '</b> の ' + label(...moved.to) + ' が未訪問なので、間の壁を<b>両側から</b>壊して進み、stack に積む。',
+        });
+      } else {
+        stack.pop();
+        snap({
+          g: 'pop', tried, from: [r, c],
+          msg: 'current <b>' + label(r, c) + '</b> の4方向はどれも進めない（行き止まり）→ stack から取り出して<b>1つ戻る</b>。' +
+            (stack.length ? ' 次は ' + label(...stack[stack.length - 1]) + ' から続きを探す。' : ''),
+        });
+      }
+    }
+    snap({ g: 'done', msg: 'stack が空になったので終了。"42" 以外の <b>' + visited.size + '</b> セルすべてが、ループの無い1本の木でつながった。' });
+    return steps;
+  }
+
+  const svg = root.querySelector('svg');
+  const msgEl = root.querySelector('.carve-msg');
+  const stackEl = root.querySelector('.carve-stack');
+  const range = root.querySelector('input[type=range]');
+  const countEl = root.querySelector('.count');
+  const lines = [...root.querySelectorAll('.carve-code .ln')];
+  const playBtn = root.querySelector('[data-act=play]');
+  let seed = 7, steps = simulate(seed), idx = 0, timer = null;
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs) => {
+    const node = document.createElementNS(NS, tag);
+    for (const k in attrs) node.setAttribute(k, attrs[k]);
+    return node;
+  };
+  const cx = (c) => PAD + c * CELL + CELL / 2;
+  const cy = (r) => PAD + r * CELL + CELL / 2;
+
+  function draw() {
+    const s = steps[idx];
+    svg.replaceChildren();
+    const top = s.stack.length ? key(...s.stack[s.stack.length - 1]) : null;
+    const inStack = new Set(s.stack.map((p) => key(...p)));
+    for (let r = 0; r < H; r++) {
+      for (let c = 0; c < W; c++) {
+        const k = key(r, c);
+        let fill = '#0b0d11';
+        if (BLOCKED.has(k)) fill = '#6b7280';
+        else if (k === top) fill = '#f0abfc';
+        else if (inStack.has(k)) fill = '#1e4a5f';
+        else if (s.visited.has(k)) fill = '#232834';
+        svg.append(el('rect', { x: PAD + c * CELL, y: PAD + r * CELL, width: CELL, height: CELL, fill }));
+      }
+    }
+    // スタックの中身を線でつなぐ（今たどっている道筋）
+    if (s.stack.length > 1) {
+      svg.append(el('polyline', {
+        points: s.stack.map(([r, c]) => cx(c) + ',' + cy(r)).join(' '),
+        fill: 'none', stroke: '#7dd3fc', 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.85,
+      }));
+    }
+    if (s.g === 'carve') {
+      svg.append(el('circle', { cx: cx(s.to[1]), cy: cy(s.to[0]), r: 7, fill: '#4ade80' }));
+    }
+    // 壁（ビットが立っている辺だけ線を引く）
+    for (let r = 0; r < H; r++) {
+      for (let c = 0; c < W; c++) {
+        const x = PAD + c * CELL, y = PAD + r * CELL, b = s.walls[r][c];
+        const line = (x1, y1, x2, y2) => svg.append(el('line', {
+          x1, y1, x2, y2, stroke: '#e7e9ee', 'stroke-width': 3, 'stroke-linecap': 'square',
+        }));
+        if (b & 1) line(x, y, x + CELL, y);
+        if (b & 2) line(x + CELL, y, x + CELL, y + CELL);
+        if (b & 4) line(x, y + CELL, x + CELL, y + CELL);
+        if (b & 8) line(x, y, x, y + CELL);
+      }
+    }
+    const t = el('text', { x: cx(ENTRY[1]), y: cy(ENTRY[0]) + 5, 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 700, fill: '#0f1115' });
+    t.textContent = 'IN';
+    if (top !== key(...ENTRY)) t.setAttribute('fill', '#9aa3b2');
+    svg.append(t);
+    for (const k of BLOCKED) {
+      const [r, c] = k.split(',').map(Number);
+      const n = el('text', { x: cx(c), y: cy(r) + 5, 'text-anchor': 'middle', 'font-size': 13, fill: '#e7e9ee' });
+      n.textContent = '42';
+      svg.append(n);
+    }
+
+    let html = s.msg;
+    if (s.tried) {
+      html += '<div class="carve-try">' + s.tried.map((t) => {
+        if (t.st === 'ok') return '<span class="ok">' + t.d.name + ' ✓</span>';
+        if (t.st === 'ng') return '<span class="ng" title="' + t.why + '">' + t.d.name + '（' + t.why + '）</span>';
+        return '<span class="skip">' + t.d.name + '</span>';
+      }).join('') + '</div>';
+    }
+    msgEl.innerHTML = html;
+    stackEl.innerHTML = 'stack = [' + s.stack.map((p) => '<code>' + label(...p) + '</code>').join(', ') +
+      ']　visited: ' + s.visited.size + ' / ' + (W * H - BLOCKED.size);
+    lines.forEach((ln) => ln.classList.toggle('hl', ln.dataset.g.split(' ').includes(s.g)));
+    range.max = steps.length - 1;
+    range.value = idx;
+    countEl.textContent = 'Step ' + idx + ' / ' + (steps.length - 1);
+  }
+
+  function stop() { clearInterval(timer); timer = null; playBtn.textContent = '▶ 自動再生'; }
+  function go(i) { idx = Math.max(0, Math.min(steps.length - 1, i)); draw(); }
+  root.addEventListener('click', (e) => {
+    const act = e.target.closest('button')?.dataset.act;
+    if (!act) return;
+    if (act !== 'play') stop();
+    if (act === 'reset') go(0);
+    if (act === 'prev') go(idx - 1);
+    if (act === 'next') go(idx + 1);
+    if (act === 'reseed') { seed = Math.floor(Math.random() * 1e9); steps = simulate(seed); go(0); }
+    if (act === 'play') {
+      if (timer) { stop(); return; }
+      if (idx >= steps.length - 1) go(0);
+      playBtn.textContent = '⏸ 停止';
+      timer = setInterval(() => { if (idx >= steps.length - 1) stop(); else go(idx + 1); }, 650);
+    }
+  });
+  range.addEventListener('input', () => { stop(); go(Number(range.value)); });
+  draw();
+})();
+
+/* _add_loops を同じ手順でシミュレートする。全域木（上のデモと同じ生成規則）を
+   まず無音で掘り、その続きの乱数で「閉じた辺を集める→シャッフル→3x3チェックし
+   ながら開ける」を1手ずつ再生する。 */
+(() => {
+  const root = document.getElementById('loops-demo');
+  if (!root) return;
+  const W = 6, H = 5, CELL = 52, PAD = 14;
+  const ENTRY = [0, 0];
+  const BLOCKED = new Set(['2,2', '2,3']);
+  const DIRS = [
+    { name: '北', bit: 1, dr: -1, dc: 0, opp: 4 },
+    { name: '東', bit: 2, dr: 0, dc: 1, opp: 8 },
+    { name: '南', bit: 4, dr: 1, dc: 0, opp: 1 },
+    { name: '西', bit: 8, dr: 0, dc: -1, opp: 2 },
+  ];
+  const key = (r, c) => r + ',' + c;
+  const label = (r, c) => '(' + r + ',' + c + ')';
+  const inGrid = (r, c) => r >= 0 && r < H && c >= 0 && c < W;
+
+  function makeRng(seed) {
+    let a = seed >>> 0;
+    return () => {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function shuffle(arr, rng) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
+  // 前セクションと同じアルゴリズムで、全域木を無音（ステップ記録無し）で掘る
+  function buildTree(rng) {
+    const walls = Array.from({ length: H }, () => Array(W).fill(15));
+    const visited = new Set([key(...ENTRY)]);
+    const stack = [ENTRY];
+    while (stack.length) {
+      const [r, c] = stack[stack.length - 1];
+      const order = DIRS.slice();
+      shuffle(order, rng);
+      let moved = false;
+      for (const d of order) {
+        const nr = r + d.dr, nc = c + d.dc;
+        if (!inGrid(nr, nc) || BLOCKED.has(key(nr, nc)) || visited.has(key(nr, nc))) continue;
+        walls[r][c] &= ~d.bit;
+        walls[nr][nc] &= ~d.opp;
+        visited.add(key(nr, nc));
+        stack.push([nr, nc]);
+        moved = true;
+        break;
+      }
+      if (!moved) stack.pop();
+    }
+    return walls;
+  }
+  function carvableList() {
+    const out = [];
+    for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) if (!BLOCKED.has(key(r, c))) out.push([r, c]);
+    return out;
+  }
+  function closedEdges(walls, list, set) {
+    const edges = [];
+    for (const cell of list) {
+      for (const d of [DIRS[1], DIRS[2]]) {  // EAST, SOUTH の2方向だけ見れば全辺を尽くせる
+        const other = [cell[0] + d.dr, cell[1] + d.dc];
+        if (set.has(key(...other)) && (walls[cell[0]][cell[1]] & d.bit)) edges.push([cell, d, other]);
+      }
+    }
+    return edges;
+  }
+  function windowFullyOpen(walls, top, left, ea, eb) {
+    const isOpenEdge = (p, q) => {
+      if ((p[0] === ea[0] && p[1] === ea[1] && q[0] === eb[0] && q[1] === eb[1]) ||
+          (p[0] === eb[0] && p[1] === eb[1] && q[0] === ea[0] && q[1] === ea[1])) return true;
+      const dc = q[1] - p[1];
+      const bit = dc === 1 ? 2 : 4;
+      return !(walls[p[0]][p[1]] & bit);
+    };
+    const cells = [];
+    for (let r = 0; r < 3; r++) { const row = []; for (let c = 0; c < 3; c++) row.push([top + r, left + c]); cells.push(row); }
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++) if (!isOpenEdge(cells[r][c], cells[r][c + 1])) return false;
+    for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) if (!isOpenEdge(cells[r][c], cells[r + 1][c])) return false;
+    return true;
+  }
+  function wouldMakeBigRoom(walls, a, b) {
+    const rowHi = Math.max(a[0], b[0]), colHi = Math.max(a[1], b[1]);
+    const rowLo = Math.min(a[0], b[0]), colLo = Math.min(a[1], b[1]);
+    const topFrom = Math.max(0, rowHi - 2), topTo = Math.min(rowLo, H - 3);
+    const leftFrom = Math.max(0, colHi - 2), leftTo = Math.min(colLo, W - 3);
+    for (let top = topFrom; top <= topTo; top++)
+      for (let left = leftFrom; left <= leftTo; left++)
+        if (windowFullyOpen(walls, top, left, a, b)) return true;
+    return false;
+  }
+
+  function simulate(seed) {
+    const rng = makeRng(seed);  // carve_spanning_tree -> add_loops で同じ rng を使い続ける
+    const walls = buildTree(rng);
+    const carvable = carvableList();
+    const carvSet = new Set(carvable.map((c) => key(...c)));
+    const targetExtra = Math.max(2, Math.floor(carvable.length / 25));
+    const candidates = closedEdges(walls, carvable, carvSet);
+    shuffle(candidates, rng);
+
+    const steps = [];
+    const openedEdges = [];
+    const tried = [];
+    let opened = 0;
+    const snap = (extra) => steps.push({
+      walls: walls.map((row) => row.slice()),
+      openedEdges: openedEdges.slice(),
+      tried: tried.slice(),
+      opened, targetExtra, total: candidates.length,
+      ...extra,
+    });
+    snap({
+      g: 'init', current: null,
+      msg: '全域木が完成した状態（前のセクションの続き）。carvable は <b>' + carvable.length +
+        '</b> セル、target_extra = max(2, ' + carvable.length + '//25) = <b>' + targetExtra + '</b>。' +
+        ' 閉じている辺を集めると <b>' + candidates.length + '</b> 個、これをシャッフルする。',
+    });
+
+    let i = 0;
+    while (opened < targetExtra && i < candidates.length) {
+      const [cell, d, other] = candidates[i];
+      i++;
+      if (wouldMakeBigRoom(walls, cell, other)) {
+        tried.push({ a: cell, b: other, ok: false });
+        snap({
+          g: 'reject', current: { a: cell, b: other },
+          msg: '候補 ' + i + '/' + candidates.length + '： <b>' + label(...cell) + '</b>–' + d.name + '–<b>' +
+            label(...other) + '</b> を試す → 開けると3x3の部屋ができてしまうので<b>却下</b>（continue）。opened は ' + opened + ' のまま。',
+        });
+        continue;
+      }
+      walls[cell[0]][cell[1]] &= ~d.bit;
+      walls[other[0]][other[1]] &= ~d.opp;
+      opened++;
+      openedEdges.push([cell, other]);
+      tried.push({ a: cell, b: other, ok: true });
+      snap({
+        g: 'accept', current: { a: cell, b: other },
+        msg: '候補 ' + i + '/' + candidates.length + '： <b>' + label(...cell) + '</b>–' + d.name + '–<b>' +
+          label(...other) + '</b> を試す → 3x3にならないのでOK。壁を<b>両側から</b>開けてループが1本増える。opened = ' + opened + '。',
+      });
+    }
+    snap({
+      g: 'break', current: null,
+      msg: 'opened(' + opened + ') が target_extra(' + targetExtra + ') に達したので、次の候補を見る前に <b>break</b>。' +
+        'ループが ' + opened + ' 本増えた（候補は全部で ' + candidates.length + ' 個あったが、残りは見ない）。',
+    });
+    return steps;
+  }
+
+  const svg = root.querySelector('svg');
+  const msgEl = root.querySelector('.carve-msg');
+  const stackEl = root.querySelector('.carve-stack');
+  const range = root.querySelector('input[type=range]');
+  const countEl = root.querySelector('.count');
+  const lines = [...root.querySelectorAll('.carve-code .ln')];
+  const playBtn = root.querySelector('[data-act=play]');
+  let seed = 7, steps = simulate(seed), idx = 0, timer = null;
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs) => {
+    const node = document.createElementNS(NS, tag);
+    for (const k in attrs) node.setAttribute(k, attrs[k]);
+    return node;
+  };
+  const cx = (c) => PAD + c * CELL + CELL / 2;
+  const cy = (r) => PAD + r * CELL + CELL / 2;
+
+  function draw() {
+    const s = steps[idx];
+    svg.replaceChildren();
+    const curKeys = s.current ? new Set([key(...s.current.a), key(...s.current.b)]) : new Set();
+    for (let r = 0; r < H; r++) {
+      for (let c = 0; c < W; c++) {
+        const k = key(r, c);
+        let fill = '#232834';
+        if (BLOCKED.has(k)) fill = '#6b7280';
+        else if (curKeys.has(k)) fill = '#f0abfc';
+        svg.append(el('rect', { x: PAD + c * CELL, y: PAD + r * CELL, width: CELL, height: CELL, fill }));
+      }
+    }
+    // 壁（まだ閉じている辺だけ線を引く）
+    for (let r = 0; r < H; r++) {
+      for (let c = 0; c < W; c++) {
+        const x = PAD + c * CELL, y = PAD + r * CELL, b = s.walls[r][c];
+        const line = (x1, y1, x2, y2) => svg.append(el('line', {
+          x1, y1, x2, y2, stroke: '#e7e9ee', 'stroke-width': 3, 'stroke-linecap': 'square',
+        }));
+        if (b & 1) line(x, y, x + CELL, y);
+        if (b & 2) line(x + CELL, y, x + CELL, y + CELL);
+        if (b & 4) line(x, y + CELL, x + CELL, y + CELL);
+        if (b & 8) line(x, y, x, y + CELL);
+      }
+    }
+    // 新しく開けたループは、開いた辺の真ん中に緑の太線を重ねて示す
+    for (const [a, b] of s.openedEdges) {
+      svg.append(el('line', {
+        x1: cx(a[1]), y1: cy(a[0]), x2: cx(b[1]), y2: cy(b[0]),
+        stroke: '#4ade80', 'stroke-width': 6, 'stroke-linecap': 'round',
+      }));
+    }
+    // 今試している辺（却下なら赤破線、採用はすでに緑で描かれる）
+    if (s.current && s.g === 'reject') {
+      svg.append(el('line', {
+        x1: cx(s.current.a[1]), y1: cy(s.current.a[0]), x2: cx(s.current.b[1]), y2: cy(s.current.b[0]),
+        stroke: '#fb7185', 'stroke-width': 4, 'stroke-dasharray': '6 5', 'stroke-linecap': 'round',
+      }));
+    }
+    for (const bk of BLOCKED) {
+      const [r, c] = bk.split(',').map(Number);
+      const n = el('text', { x: cx(c), y: cy(r) + 5, 'text-anchor': 'middle', 'font-size': 13, fill: '#e7e9ee' });
+      n.textContent = '42';
+      svg.append(n);
+    }
+
+    msgEl.innerHTML = s.msg + (s.tried.length ? '<div class="carve-try">' + s.tried.map((t) =>
+      '<span class="' + (t.ok ? 'ok' : 'ng') + '" title="' + label(...t.a) + '-' + label(...t.b) + '">' +
+      (t.ok ? '採用 ✓' : '却下') + '</span>').join('') + '</div>' : '');
+    stackEl.textContent = 'opened = ' + s.opened + ' / target_extra = ' + s.targetExtra +
+      '　（候補 ' + s.tried.length + ' / ' + s.total + ' を評価済み）';
+    lines.forEach((ln) => ln.classList.toggle('hl', ln.dataset.g.split(' ').includes(s.g)));
+    range.max = steps.length - 1;
+    range.value = idx;
+    countEl.textContent = 'Step ' + idx + ' / ' + (steps.length - 1);
+  }
+
+  function stop() { clearInterval(timer); timer = null; playBtn.textContent = '▶ 自動再生'; }
+  function go(i) { idx = Math.max(0, Math.min(steps.length - 1, i)); draw(); }
+  root.addEventListener('click', (e) => {
+    const act = e.target.closest('button')?.dataset.act;
+    if (!act) return;
+    if (act !== 'play') stop();
+    if (act === 'reset') go(0);
+    if (act === 'prev') go(idx - 1);
+    if (act === 'next') go(idx + 1);
+    if (act === 'reseed') { seed = Math.floor(Math.random() * 1e9); steps = simulate(seed); go(0); }
+    if (act === 'play') {
+      if (timer) { stop(); return; }
+      if (idx >= steps.length - 1) go(0);
+      playBtn.textContent = '⏸ 停止';
+      timer = setInterval(() => { if (idx >= steps.length - 1) stop(); else go(idx + 1); }, 900);
+    }
+  });
+  range.addEventListener('input', () => { stop(); go(Number(range.value)); });
+  draw();
+})();
+</script>
+</body>
+</html>
