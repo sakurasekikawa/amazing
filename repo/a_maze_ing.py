@@ -6,7 +6,8 @@
 設定の読み込み・ファイル出力・対話的表示のみを担当する。
 
 Usage:
-    python3 a_maze_ing.py config.txt
+    python3 a_maze_ing.py config.txt            # MLX があれば GUI、無ければ端末
+    python3 a_maze_ing.py config.txt --ascii    # 常に端末表示
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from typing import List, Optional, Tuple
 from dotenv import dotenv_values
 
 from display import run_interactive
+from gui import mlx_available, run_gui
 from mazegen import Maze, MazeGenerationError, MazeGenerator
 
 REQUIRED_KEYS = ("WIDTH", "HEIGHT", "ENTRY", "EXIT", "OUTPUT_FILE", "PERFECT")
@@ -96,11 +98,14 @@ def write_maze_file(path: str, maze: Maze) -> None:
 
 def main(argv: List[str]) -> int:
     """エントリポイント。常に正常終了か、分かりやすいエラーで非ゼロ終了する。"""
-    if len(argv) != 1:
-        print("Usage: python3 a_maze_ing.py <config.txt>", file=sys.stderr)
+    use_gui = "--ascii" not in argv
+    args = [arg for arg in argv if arg != "--ascii"]
+    if len(args) != 1:
+        print("Usage: python3 a_maze_ing.py <config.txt> [--ascii]",
+              file=sys.stderr)
         return 1
 
-    config_path = argv[0]
+    config_path = args[0]
     try:
         config = read_config(config_path)
         maze = build_maze(config)
@@ -109,7 +114,19 @@ def main(argv: List[str]) -> int:
         def regenerate() -> Maze:
             return build_maze(config, seed=random.randrange(2**31))
 
-        run_interactive(maze, regenerate, config.output_file, write_maze_file)
+        show = run_interactive
+        if use_gui and mlx_available():
+            show = run_gui
+        elif use_gui:
+            print("MLX not found: using the terminal display "
+                  "(install mlx-2.2 for the GUI).", file=sys.stderr)
+        try:
+            show(maze, regenerate, config.output_file, write_maze_file)
+        except RuntimeError as error:   # ディスプレイ無し等で窓が開けない
+            print(f"GUI unavailable ({error}): using the terminal display.",
+                  file=sys.stderr)
+            run_interactive(maze, regenerate, config.output_file,
+                            write_maze_file)
     except ValueError as error:
         print(f"Configuration error: {error}", file=sys.stderr)
         return 1
